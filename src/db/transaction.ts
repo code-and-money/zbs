@@ -56,7 +56,7 @@ function typeofQueryable(queryable: Queryable) {
 
   if (
     Object.prototype.hasOwnProperty.call(pg, 'native') &&
-    Object.prototype.propertyIsEnumerable.call(pg, 'pg') &&
+    Object.prototype.propertyIsEnumerable.call(pg, 'native') &&
     pg.native
   ) {
     if (queryable instanceof pg.native.Pool) return 'pool';

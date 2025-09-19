@@ -513,7 +513,7 @@ export const select: SelectSignatures = function (
       Array.isArray(distinct) ? sql` ON (${cols(distinct)})` : []}`,
     colsSQL = lateral instanceof SQLFragment ? [] :
       mode === SelectResultMode.Numeric ?
-        (columns ? sql`${raw(aggregate)}(${cols(columns)})` : sql`${raw(aggregate)}(${alias}.*)`) :
+        (columns ? sql`${raw(aggregate)}(${cols(columns)})` : sql`${raw(aggregate)}(*)`) :
         SQLForColumnsOfTable(columns, alias as Table),
     colsExtraSQL = lateral instanceof SQLFragment || mode === SelectResultMode.Numeric ? [] : SQLForExtras(extras),
     colsLateralSQL = lateral === undefined || mode === SelectResultMode.Numeric ? [] :
