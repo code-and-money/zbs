@@ -1,7 +1,7 @@
 import type * as pg from "pg";
 
-import { getConfig, SQLQuery } from "./config";
-import { isPOJO, NoInfer } from "./utils";
+import { getConfig, type SQLQuery } from "./config";
+import { isPOJO, type NoInfer } from "./utils";
 
 import type { Updatable, Whereable, Table, Column } from "zapatos/schema";
 
@@ -345,7 +345,7 @@ export class SQLFragment<RunResult = pg.QueryResult["rows"], Constraint = never>
       for (let i = 0, len = expression.length; i < len; i++) this.compileExpression(expression[i], result, parentTable, currentColumn);
     } else if (expression instanceof Parameter) {
       // parameters become placeholders, and a corresponding entry in the values array
-      const placeholder = "$" + String(result.values.length + 1), // 1-based indexing
+      const placeholder = `$${String(result.values.length + 1)}`, // 1-based indexing
         config = getConfig();
 
       if (

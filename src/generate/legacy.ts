@@ -1,7 +1,7 @@
-import * as path from "path";
-import * as fs from "fs";
+import * as path from "node:path";
+import * as fs from "node:fs";
 
-import { CompleteConfig } from "./config";
+import type { CompleteConfig } from "./config";
 
 const recurseNodes = (node: string): string[] => (fs.statSync(node).isFile() ? [node] : fs.readdirSync(node).reduce<string[]>((memo, n) => memo.concat(recurseNodes(path.join(node, n))), []));
 

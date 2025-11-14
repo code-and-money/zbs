@@ -1,6 +1,6 @@
-import * as fs from "fs";
-import * as path from "path";
-import { finaliseConfig, Config } from "./config";
+import * as fs from "node:fs";
+import * as path from "node:path";
+import { finaliseConfig, type Config } from "./config";
 import * as legacy from "./legacy";
 import { tsForConfig } from "./ts-output";
 import { header } from "./header";
@@ -16,9 +16,9 @@ export const generate = async (suppliedConfig: Config) => {
     debug = config.debugListener === true ? console.log : config.debugListener || (() => void 0),
     { ts, customTypeSourceFiles } = await tsForConfig(config, debug),
     folderName = "zapatos",
-    schemaName = "schema" + config.outExt,
+    schemaName = `schema${config.outExt}`,
     customFolderName = "custom",
-    customTypesIndexName = "index" + config.outExt,
+    customTypesIndexName = `index${config.outExt}`,
     customTypesIndexContent =
       header() +
       `

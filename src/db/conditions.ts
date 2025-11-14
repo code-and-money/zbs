@@ -1,4 +1,4 @@
-import { SQLFragment, ParentColumn, Parameter, param, sql, SQL, self, vals } from "./core";
+import { SQLFragment, ParentColumn, Parameter, param, sql, type SQL, self, vals } from "./core";
 
 import { mapWithSeparator } from "./utils";
 import type { Whereable } from "zapatos/schema";
@@ -54,7 +54,7 @@ export const arrayOverlaps = <T>(a: T[] | ParentColumn) => sql<SQL, boolean | nu
 // things that aren't genuinely conditions
 type PluralisingIntervalUnit = "microsecond" | "millisecond" | "second" | "minute" | "hour" | "day" | "week" | "month" | "year" | "decade";
 type IntervalUnit = PluralisingIntervalUnit | `${PluralisingIntervalUnit}s` | "century" | "centuries" | "millennium" | "millennia";
-export const fromNow = (n: number, unit: IntervalUnit = "millisecond") => sql`now() + ${param(String(n) + " " + unit)}`;
+export const fromNow = (n: number, unit: IntervalUnit = "millisecond") => sql`now() + ${param(`${String(n)} ${unit}`)}`;
 export const after = gt;
 export const before = lt;
 export const now = sql`now()`;

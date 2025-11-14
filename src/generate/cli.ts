@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // ^^ this shebang is for the compiled JS file, not the TS source
 
-import * as fs from "fs";
+import * as fs from "node:fs";
 import { generate } from ".";
 import type { Config } from "./config";
 

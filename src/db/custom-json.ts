@@ -9,8 +9,8 @@ export function enableCustomJSONParsingForLargeNumbers(pg: typeof pgLib) {
 const { MAX_SAFE_INTEGER, MIN_SAFE_INTEGER } = Number;
 
 function parseJSONWithLargeNumbersAsStrings(str: string) {
-  return parse(str, undefined, function (k, str) {
-    const n = +str; // JSON parser ensures this is an ordinary number, parseInt(str, 10) not needed
+  return parse(str, undefined, function (_k, str) {
+    const n = Number(str); // JSON parser ensures this is an ordinary number, parseInt(str, 10) not needed
     if (n === Infinity || n === -Infinity) return str;
     if ((n < MIN_SAFE_INTEGER || n > MAX_SAFE_INTEGER) && str.indexOf(".") === -1) return str;
     if (str.length <= 15 || numericStringToExponential(str) === n.toExponential()) return n;
@@ -43,7 +43,7 @@ function numericStringToExponential(str: string) {
     srcDigitsExp,
   ] = match;
 
-  let exp = srcDigitsExp ? (srcSignExp === "-" ? -srcDigitsExp : +srcDigitsExp) : 0;
+  let exp = srcDigitsExp ? (srcSignExp === "-" ? -srcDigitsExp : Number(srcDigitsExp)) : 0;
   let result = srcMinus;
 
   if (srcDigitsPreDp === "0") {
@@ -54,14 +54,14 @@ function numericStringToExponential(str: string) {
     exp -= srcLeadingZeroesPostDp.length + 1;
     result += srcDigitsPostDp.charAt(0);
 
-    if (srcDigitsPostDp.length > 1) result += "." + srcDigitsPostDp.slice(1);
+    if (srcDigitsPostDp.length > 1) result += `.${srcDigitsPostDp.slice(1)}`;
   } else {
     // n <= -1, n >= 1
     exp += srcTrailingZeroesPreDp.length + srcDigitsPreDp.length - 1;
     result += srcDigitsPreDp.charAt(0);
 
     if (srcDigitsPreDp.length > 1 || srcDigitsPostDp) {
-      result += "." + srcDigitsPreDp.slice(1);
+      result += `.${srcDigitsPreDp.slice(1)}`;
       if (srcDigitsPostDp) {
         result += srcTrailingZeroesPreDp;
         if (srcLeadingZeroesPostDp) result += srcLeadingZeroesPostDp;
@@ -70,7 +70,7 @@ function numericStringToExponential(str: string) {
     }
   }
 
-  result += "e" + (exp >= 0 ? "+" : "") + exp;
+  result += `e${exp >= 0 ? "+" : ""}${exp}`;
   return result;
 }
 
