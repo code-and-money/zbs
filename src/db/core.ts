@@ -314,16 +314,22 @@ export class SQLFragment<RunResult = pg.QueryResult["rows"], Constraint = never>
    * only passed when the function calls itself recursively.
    */
   compile = (result: SQLQuery = { text: "", values: [] }, parentTable?: string, currentColumn?: Column) => {
-    if (this.parentTable) parentTable = this.parentTable;
+    if (this.parentTable) {
+      parentTable = this.parentTable;
+    }
 
-    if (this.noop) result.text += "/* marked no-op: won't hit DB unless forced -> */ ";
+    if (this.noop) {
+      result.text += "/* marked no-op: won't hit DB unless forced -> */ ";
+    }
     result.text += this.literals[0];
     for (let i = 1, len = this.literals.length; i < len; i++) {
       this.compileExpression(this.expressions[i - 1], result, parentTable, currentColumn);
       result.text += this.literals[i];
     }
 
-    if (this.preparedName != null) result.name = this.preparedName;
+    if (this.preparedName != null) {
+      result.name = this.preparedName;
+    }
 
     return result;
   };

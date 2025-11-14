@@ -8,19 +8,19 @@ const recurseNodes = (node: string): string[] => (fs.statSync(node).isFile() ? [
 export function srcWarning(config: CompleteConfig) {
   if (config.outExt === ".ts") return; // if .ts extension is explicitly set, our legacy detection code fails
 
-  const legacyFolderName = "zapatos",
-    legacyFolderPath = path.join(config.outDir, legacyFolderName),
-    legacySchemaName = "schema.ts",
-    legacySchemaPath = path.join(legacyFolderPath, legacySchemaName),
-    legacySchemaExists = fs.existsSync(legacySchemaPath),
-    legacySrcName = "src",
-    legacySrcPath = path.join(legacyFolderPath, legacySrcName),
-    legacySrcExists = fs.existsSync(legacySrcPath),
-    legacyCustomName = "custom",
-    legacyCustomPath = path.join(legacyFolderPath, legacyCustomName),
-    legacyCustomPathExists = fs.existsSync(legacyCustomPath),
-    legacyCustomTypes = !legacyCustomPathExists ? [] : recurseNodes(legacyCustomPath).filter((f) => !f.match(/[.]d[.]ts$/)),
-    legacyCustomTypesExist = legacyCustomTypes.length > 0;
+  const legacyFolderName = "zapatos";
+  const legacyFolderPath = path.join(config.outDir, legacyFolderName);
+  const legacySchemaName = "schema.ts";
+  const legacySchemaPath = path.join(legacyFolderPath, legacySchemaName);
+  const legacySchemaExists = fs.existsSync(legacySchemaPath);
+  const legacySrcName = "src";
+  const legacySrcPath = path.join(legacyFolderPath, legacySrcName);
+  const legacySrcExists = fs.existsSync(legacySrcPath);
+  const legacyCustomName = "custom";
+  const legacyCustomPath = path.join(legacyFolderPath, legacyCustomName);
+  const legacyCustomPathExists = fs.existsSync(legacyCustomPath);
+  const legacyCustomTypes = !legacyCustomPathExists ? [] : recurseNodes(legacyCustomPath).filter((f) => !f.match(/[.]d[.]ts$/));
+  const legacyCustomTypesExist = legacyCustomTypes.length > 0;
 
   if (legacySchemaExists || legacySrcExists || legacyCustomTypesExist) {
     const warn = config.warningListener === true ? console.log : config.warningListener || (() => void 0);

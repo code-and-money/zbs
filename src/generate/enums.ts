@@ -2,7 +2,7 @@ import type * as pg from "pg";
 
 export type EnumData = { [k: string]: string[] };
 
-export const enumDataForSchema = async (schemaName: string, queryFn: (q: pg.QueryConfig) => Promise<pg.QueryResult<any>>) => {
+export async function enumDataForSchema(schemaName: string, queryFn: (q: pg.QueryConfig) => Promise<pg.QueryResult<any>>): Promise<EnumData> {
   const { rows } = await queryFn({
     text: `
         SELECT
@@ -17,15 +17,17 @@ export const enumDataForSchema = async (schemaName: string, queryFn: (q: pg.Quer
     values: [schemaName],
   });
 
-  const enums: EnumData = rows.reduce((memo, row) => {
-    memo[row.name] = memo[row.name] ?? [];
-    memo[row.name].push(row.value);
+  const enums: EnumData = {};
 
-    return memo;
-  }, {});
+  for (const row of rows) {
+    if (!enums[row.name]) {
+      enums[row.name] = [];
+    }
+    enums[row.name].push(row.value);
+  }
 
   return enums;
-};
+}
 
 export const enumTypesForEnumData = (enums: EnumData) => {
   const types = Object.keys(enums)

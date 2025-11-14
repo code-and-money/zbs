@@ -47,73 +47,77 @@ function indentAll(level: number, s: string) {
 
 export const tsForConfig = async (config: CompleteConfig, debug: (s: string) => void) => {
   let querySeq = 0;
-  const { schemas, db } = config,
-    pool = new pg.Pool(db),
-    queryFn = async (query: pg.QueryConfig, seq = querySeq++) => {
-      try {
-        debug(`>>> query ${seq} >>>\n${query.text.replace(/^\s+|\s+$/gm, "")}\n+ ${JSON.stringify(query.values)}\n`);
-        const result = await pool.query(query);
-        debug(`<<< result ${seq} <<<\n${JSON.stringify(result, null, 2)}\n`);
-        return result;
-      } catch (e) {
-        console.log(`*** error ${seq} ***`, e);
-        process.exit(1);
-      }
-    },
-    customTypes = {},
-    schemaNames = Object.keys(schemas),
-    schemaData = await Promise.all(
-      schemaNames.map(async (schema) => {
-        const rules = schemas[schema],
-          tables =
-            rules.exclude === "*"
-              ? []
-              : // exclude takes precedence
-                (await relationsInSchema(schema, queryFn))
-                  .filter((rel) => rules.include === "*" || rules.include.indexOf(rel.name) >= 0)
-                  .filter((rel) => rules.exclude.indexOf(rel.name) < 0),
-          enums = await enumDataForSchema(schema, queryFn),
-          tableDefs = await Promise.all(tables.map(async (table) => definitionForRelationInSchema(table, schema, enums, customTypes, config, queryFn))),
-          schemaIsUnprefixed = schema === config.unprefixedSchema,
-          none = "/* (none) */",
-          schemaDef =
-            `/* === schema: ${schema} === */\n` +
-            (schemaIsUnprefixed ? "" : `\nexport namespace ${schema} {\n`) +
-            indentAll(
-              schemaIsUnprefixed ? 0 : 2,
-              `\n/* --- enums --- */\n` +
-                (enumTypesForEnumData(enums) || none) +
-                `\n\n/* --- tables --- */\n` +
-                (tableDefs.join("\n") || none) +
-                `\n\n/* --- aggregate types --- */\n` +
-                (schemaIsUnprefixed ? `\nexport namespace ${schema} {` + indentAll(2, crossTableTypesForTables(tables) || none) + "\n}\n" : crossTableTypesForTables(tables) || none),
-            ) +
-            "\n" +
-            (schemaIsUnprefixed ? "" : `}\n`);
+  const { schemas, db } = config;
+  const pool = new pg.Pool(db);
 
-        return { schemaDef, tables };
-      }),
-    ),
-    schemaDefs = schemaData.map((r) => r.schemaDef),
-    schemaTables = schemaData.map((r) => r.tables),
-    allTables = ([] as Relation[]).concat(...schemaTables),
-    hasCustomTypes = Object.keys(customTypes).length > 0,
-    ts =
-      header() +
-      declareModule(
-        "zapatos/schema",
-        `\nimport type * as db from 'zapatos/db';\n` +
-          (hasCustomTypes ? `import type * as c from 'zapatos/custom';\n` : ``) +
-          versionCanary +
-          "\n\n" +
-          schemaDefs.join("\n\n") +
-          `\n\n/* === global aggregate types === */\n` +
-          crossSchemaTypesForSchemas(schemaNames) +
-          `\n\n/* === lookups === */\n` +
-          crossSchemaTypesForAllTables(allTables, config.unprefixedSchema),
-      ),
-    customTypeSourceFiles = sourceFilesForCustomTypes(customTypes);
+  const customTypes = {};
+  const schemaNames = Object.keys(schemas);
+  const queryFn = async (query: pg.QueryConfig, seq = querySeq++) => {
+    try {
+      debug(`>>> query ${seq} >>>\n${query.text.replace(/^\s+|\s+$/gm, "")}\n+ ${JSON.stringify(query.values)}\n`);
+      const result = await pool.query(query);
+      debug(`<<< result ${seq} <<<\n${JSON.stringify(result, null, 2)}\n`);
+      return result;
+    } catch (e) {
+      console.log(`*** error ${seq} ***`, e);
+      process.exit(1);
+    }
+  };
+  const schemaData = await Promise.all(
+    schemaNames.map(async (schema) => {
+      const rules = schemas[schema],
+        tables =
+          rules.exclude === "*"
+            ? []
+            : // exclude takes precedence
+              (await relationsInSchema(schema, queryFn))
+                .filter((rel) => rules.include === "*" || rules.include.indexOf(rel.name) >= 0)
+                .filter((rel) => rules.exclude.indexOf(rel.name) < 0),
+        enums = await enumDataForSchema(schema, queryFn),
+        tableDefs = await Promise.all(tables.map(async (table) => definitionForRelationInSchema(table, schema, enums, customTypes, config, queryFn))),
+        schemaIsUnprefixed = schema === config.unprefixedSchema,
+        none = "/* (none) */",
+        schemaDef =
+          `/* === schema: ${schema} === */\n` +
+          (schemaIsUnprefixed ? "" : `\nexport namespace ${schema} {\n`) +
+          indentAll(
+            schemaIsUnprefixed ? 0 : 2,
+            `\n/* --- enums --- */\n` +
+              (enumTypesForEnumData(enums) || none) +
+              `\n\n/* --- tables --- */\n` +
+              (tableDefs.join("\n") || none) +
+              `\n\n/* --- aggregate types --- */\n` +
+              (schemaIsUnprefixed ? `\nexport namespace ${schema} {` + indentAll(2, crossTableTypesForTables(tables) || none) + "\n}\n" : crossTableTypesForTables(tables) || none),
+          ) +
+          "\n" +
+          (schemaIsUnprefixed ? "" : `}\n`);
+
+      return { schemaDef, tables };
+    }),
+  );
+  const schemaDefs = schemaData.map((r) => r.schemaDef);
+  const schemaTables = schemaData.map((r) => r.tables);
+  const allTables = ([] as Relation[]).concat(...schemaTables);
+  const hasCustomTypes = Object.keys(customTypes).length > 0;
+
+  const ts =
+    header() +
+    declareModule(
+      "zapatos/schema",
+      `\nimport type * as db from 'zapatos/db';\n` +
+        (hasCustomTypes ? `import type * as c from 'zapatos/custom';\n` : ``) +
+        versionCanary +
+        "\n\n" +
+        schemaDefs.join("\n\n") +
+        `\n\n/* === global aggregate types === */\n` +
+        crossSchemaTypesForSchemas(schemaNames) +
+        `\n\n/* === lookups === */\n` +
+        crossSchemaTypesForAllTables(allTables, config.unprefixedSchema),
+    );
+
+  const customTypeSourceFiles = sourceFilesForCustomTypes(customTypes);
 
   await pool.end();
+
   return { ts, customTypeSourceFiles };
 };

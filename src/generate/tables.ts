@@ -89,39 +89,40 @@ function quoteIfIllegalIdentifier(identifier: string) {
   return identifier.match(/^[a-zA-Z_$][0-9a-zA-Z_$]*$/) ? identifier : `"${identifier}"`;
 }
 
-export const definitionForRelationInSchema = async (
+export async function definitionForRelationInSchema(
   rel: Relation,
   schemaName: string,
   enums: EnumData,
   customTypes: CustomTypes, // an 'out' parameter
   config: CompleteConfig,
   queryFn: (q: pg.QueryConfig) => Promise<pg.QueryResult<any>>,
-) => {
-  const rows = await columnsForRelation(rel, schemaName, queryFn),
-    selectables: string[] = [],
-    JSONSelectables: string[] = [],
-    whereables: string[] = [],
-    insertables: string[] = [],
-    updatables: string[] = [];
+): Promise<string> {
+  const rows = await columnsForRelation(rel, schemaName, queryFn);
+  const selectables: string[] = [];
+  const JSONSelectables: string[] = [];
+  const whereables: string[] = [];
+  const insertables: string[] = [];
+  const updatables: string[] = [];
 
   rows.forEach((row) => {
     const { column, isGenerated, isNullable, hasDefault, udtName, domainName } = row;
-    let selectableType = tsTypeForPgType(udtName, enums, "Selectable", config),
-      JSONSelectableType = tsTypeForPgType(udtName, enums, "JSONSelectable", config),
-      whereableType = tsTypeForPgType(udtName, enums, "Whereable", config),
-      insertableType = tsTypeForPgType(udtName, enums, "Insertable", config),
-      updatableType = tsTypeForPgType(udtName, enums, "Updatable", config);
 
-    const columnDoc = createColumnDoc(config, schemaName, rel, row),
-      schemaPrefix = config.unprefixedSchema === schemaName ? "" : `${schemaName}.`,
-      prefixedRelName = schemaPrefix + rel.name,
-      columnOptions = (config.columnOptions[prefixedRelName] && config.columnOptions[prefixedRelName][column]) ?? (config.columnOptions["*"] && config.columnOptions["*"][column]),
-      isInsertable = rel.insertable && !isGenerated && columnOptions?.insert !== "excluded",
-      isUpdatable = rel.insertable && !isGenerated && columnOptions?.update !== "excluded",
-      insertablyOptional = isNullable || hasDefault || columnOptions?.insert === "optional" ? "?" : "",
-      orNull = isNullable ? " | null" : "",
-      orDefault = isNullable || hasDefault ? " | db.DefaultType" : "",
-      possiblyQuotedColumn = quoteIfIllegalIdentifier(column);
+    let selectableType = tsTypeForPgType(udtName, enums, "Selectable", config);
+    let JSONSelectableType = tsTypeForPgType(udtName, enums, "JSONSelectable", config);
+    let whereableType = tsTypeForPgType(udtName, enums, "Whereable", config);
+    let insertableType = tsTypeForPgType(udtName, enums, "Insertable", config);
+    let updatableType = tsTypeForPgType(udtName, enums, "Updatable", config);
+
+    const columnDoc = createColumnDoc(config, schemaName, rel, row);
+    const schemaPrefix = config.unprefixedSchema === schemaName ? "" : `${schemaName}.`;
+    const prefixedRelName = schemaPrefix + rel.name;
+    const columnOptions = (config.columnOptions[prefixedRelName] && config.columnOptions[prefixedRelName][column]) ?? (config.columnOptions["*"] && config.columnOptions["*"][column]);
+    const isInsertable = rel.insertable && !isGenerated && columnOptions?.insert !== "excluded";
+    const isUpdatable = rel.insertable && !isGenerated && columnOptions?.update !== "excluded";
+    const insertablyOptional = isNullable || hasDefault || columnOptions?.insert === "optional" ? "?" : "";
+    const orNull = isNullable ? " | null" : "";
+    const orDefault = isNullable || hasDefault ? " | db.DefaultType" : "";
+    const possiblyQuotedColumn = quoteIfIllegalIdentifier(column);
 
     // Now, 4 cases:
     //   1. null domain, known udt        <-- standard case
@@ -133,8 +134,8 @@ export const definitionForRelationInSchema = async (
 
     if (selectableType === "any" || domainName !== null) {
       // cases 2, 3, 4
-      const customType: string = domainName ?? udtName,
-        prefixedCustomType = transformCustomType(customType, config);
+      const customType: string = domainName ?? udtName;
+      const prefixedCustomType = transformCustomType(customType, config);
 
       customTypes[prefixedCustomType] = selectableType;
       selectableType = JSONSelectableType = whereableType = insertableType = updatableType = "c." + prefixedCustomType;
@@ -147,40 +148,45 @@ export const definitionForRelationInSchema = async (
     whereables.push(`${columnDoc}${possiblyQuotedColumn}?: ${basicWhereableTypes} | db.SQLFragment<any, ${basicWhereableTypes}>;`);
 
     const insertableTypes = `${insertableType} | db.Parameter<${insertableType}>${orNull}${orDefault} | db.SQLFragment`;
-    if (isInsertable) insertables.push(`${columnDoc}${possiblyQuotedColumn}${insertablyOptional}: ${insertableTypes};`);
+    if (isInsertable) {
+      insertables.push(`${columnDoc}${possiblyQuotedColumn}${insertablyOptional}: ${insertableTypes};`);
+    }
 
     const updatableTypes = `${updatableType} | db.Parameter<${updatableType}>${orNull}${orDefault} | db.SQLFragment`;
-    if (isUpdatable) updatables.push(`${columnDoc}${possiblyQuotedColumn}?: ${updatableTypes} | db.SQLFragment<any, ${updatableTypes}>;`);
+    if (isUpdatable) {
+      updatables.push(`${columnDoc}${possiblyQuotedColumn}?: ${updatableTypes} | db.SQLFragment<any, ${updatableTypes}>;`);
+    }
   });
 
   const result = await queryFn({
-      text: `
+    text: `
         SELECT DISTINCT i.indexname
         FROM pg_catalog.pg_indexes i
         JOIN pg_catalog.pg_class c ON c.relname = i.indexname
         JOIN pg_catalog.pg_index idx ON idx.indexrelid = c.oid AND idx.indisunique
         WHERE i.tablename = $1 AND i.schemaname = $2
         ORDER BY i.indexname`,
-      values: [rel.name, schemaName],
-    }),
-    uniqueIndexes = result.rows;
+    values: [rel.name, schemaName],
+  });
+  const uniqueIndexes = result.rows;
 
-  const schemaPrefix = schemaName === config.unprefixedSchema ? "" : `${schemaName}.`,
-    friendlyRelTypes: Record<Relation["type"], string> = {
-      table: "Table",
-      fdw: "Foreign table",
-      view: "View",
-      mview: "Materialized view",
-    },
-    friendlyRelType = friendlyRelTypes[rel.type],
-    tableComment = config.schemaJSDoc
-      ? `
+  const schemaPrefix = schemaName === config.unprefixedSchema ? "" : `${schemaName}.`;
+  const friendlyRelTypes: Record<Relation["type"], string> = {
+    table: "Table",
+    fdw: "Foreign table",
+    view: "View",
+    mview: "Materialized view",
+  };
+  const friendlyRelType = friendlyRelTypes[rel.type];
+  const tableComment = config.schemaJSDoc
+    ? `
 /**
  * **${schemaPrefix}${rel.name}**
  * - ${friendlyRelType} in database
  */`
-      : ``,
-    tableDef = `${tableComment}
+    : ``;
+
+  const tableDef = `${tableComment}
 export namespace ${rel.name} {
   export type Table = '${schemaPrefix}${rel.name}';
   export interface Selectable {
@@ -204,25 +210,32 @@ export namespace ${rel.name} {
   export type SQLExpression = Table | db.ColumnNames<Updatable | (keyof Updatable)[]> | db.ColumnValues<Updatable> | Whereable | Column | db.ParentColumn | db.GenericSQLExpression;
   export type SQL = SQLExpression | SQLExpression[];
 }`;
+
   return tableDef;
-};
+}
 
-const transformCustomType = (customType: string, config: CompleteConfig) => {
-  const ctt = config.customTypesTransform,
-    underscoredType = customType.replace(/\W+/g, "_"),
-    legalisedType = customType.replace(/\W+/g, "");
+function transformCustomType(customType: string, config: CompleteConfig): string {
+  const ctt = config.customTypesTransform;
+  const underscoredType = customType.replace(/\W+/g, "_");
+  const legalisedType = customType.replace(/\W+/g, "");
 
-  return ctt === "my_type"
-    ? legalisedType
-    : ctt === "PgMyType"
-      ? ("Pg_" + legalisedType).replace(/_[^_]/g, (m) => m.charAt(1).toUpperCase())
-      : ctt === "PgMy_type"
-        ? "Pg" + underscoredType.charAt(0).toUpperCase() + underscoredType.slice(1)
-        : ctt(customType);
-};
+  if (ctt === "my_type") {
+    return legalisedType;
+  }
 
-const tableMappedUnion = (arr: Relation[], suffix: string) => (arr.length === 0 ? "never" : arr.map((rel) => `${rel.name}.${suffix}`).join(" | ")),
-  tableMappedArray = (arr: Relation[], suffix: string) => "[" + arr.map((rel) => `${rel.name}.${suffix}`).join(", ") + "]";
+  if (ctt === "PgMyType") {
+    return ("Pg_" + legalisedType).replace(/_[^_]/g, (m) => m.charAt(1).toUpperCase());
+  }
+
+  if (ctt === "PgMy_type") {
+    return "Pg" + underscoredType.charAt(0).toUpperCase() + underscoredType.slice(1);
+  }
+
+  return ctt(customType);
+}
+
+const tableMappedUnion = (arr: Relation[], suffix: string) => (arr.length === 0 ? "never" : arr.map((rel) => `${rel.name}.${suffix}`).join(" | "));
+const tableMappedArray = (arr: Relation[], suffix: string) => "[" + arr.map((rel) => `${rel.name}.${suffix}`).join(", ") + "]";
 
 export const crossTableTypesForTables = (tables: Relation[]) => `${
   tables.length === 0 ? "\n// `never` rather than `any` types would be more accurate in this no-tables case, but they stop `shortcuts.ts` compiling\n" : ""
@@ -273,8 +286,8 @@ export type ${thingable}ForTable<T extends Table> = ${
     )
     .join("");
 
-const schemaMappedUnion = (arr: string[], suffix: string) => (arr.length === 0 ? "any" : arr.map((s) => `${s}.${suffix}`).join(" | ")),
-  schemaMappedArray = (arr: string[], suffix: string) => "[" + arr.map((s) => `...${s}.${suffix}`).join(", ") + "]";
+const schemaMappedUnion = (arr: string[], suffix: string) => (arr.length === 0 ? "any" : arr.map((s) => `${s}.${suffix}`).join(" | "));
+const schemaMappedArray = (arr: string[], suffix: string) => "[" + arr.map((s) => `...${s}.${suffix}`).join(", ") + "]";
 
 export const crossSchemaTypesForSchemas = (schemas: string[]) => `
 export type Schema = ${schemas.map((s) => `'${s}'`).join(" | ")};
@@ -298,9 +311,10 @@ export type AllTablesAndViews = ${schemaMappedArray(schemas, "AllTablesAndViews"
 const createColumnDoc = (config: CompleteConfig, schemaName: string, rel: Relation, columnDetails: Record<string, unknown>) => {
   if (!config.schemaJSDoc) return "";
 
-  const schemaPrefix = schemaName === config.unprefixedSchema ? "" : `${schemaName}.`,
-    { column, isGenerated, isNullable, hasDefault, defaultValue, udtName, domainName, description } = columnDetails,
-    doc = `/**
+  const schemaPrefix = schemaName === config.unprefixedSchema ? "" : `${schemaName}.`;
+  const { column, isGenerated, isNullable, hasDefault, defaultValue, udtName, domainName, description } = columnDetails;
+
+  const doc = `/**
     * **${schemaPrefix}${rel.name}.${column}**${description ? "\n    *\n    * " + description : ""}
     * - ${domainName ? `\`${domainName}\` (base type: \`${udtName ?? "(none)"}\`)` : `\`${udtName ?? "(none)"}\``} in database
     * - ${
@@ -312,5 +326,6 @@ const createColumnDoc = (config: CompleteConfig, schemaName: string, rel: Relati
     }
     */
     `;
+
   return doc;
 };

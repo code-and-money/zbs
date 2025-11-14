@@ -15,8 +15,8 @@ export interface Config {
 }
 export type NewConfig = Partial<Config>;
 
+// defaults
 let config: Config = {
-  // defaults
   transactionAttemptsMax: 5,
   transactionRetryDelay: { minMs: 25, maxMs: 250 },
   castArrayParamsToJson: false,

@@ -2,33 +2,40 @@
 // ^^ this shebang is for the compiled JS file, not the TS source
 
 import * as fs from "node:fs";
-import { generate } from ".";
+import { generate } from "./exports";
 import type { Config } from "./config";
 
-const recursivelyInterpolateEnvVars = (obj: any): any =>
+function recursivelyInterpolateEnvVars(obj: any): any {
   // string? => do the interpolation
-  typeof obj === "string"
-    ? obj.replace(/\{\{\s*([^}\s]+)\s*\}\}/g, (_0, name) => {
-        const e = process.env[name];
-        if (e === undefined) throw new Error(`Environment variable '${name}' is not set`);
-        return e;
-      })
-    : // array? => recurse over its items
-      Array.isArray(obj)
-      ? obj.map((item) => recursivelyInterpolateEnvVars(item))
-      : // object? => recurse over its values (but don't touch the keys)
-        obj !== null && typeof obj === "object"
-        ? Object.keys(obj).reduce<any>((memo, key) => {
-            memo[key] = recursivelyInterpolateEnvVars(obj[key]);
-            return memo;
-          }, {})
-        : // anything else (e.g. number)? => pass right through
-          obj;
+  if (typeof obj === "string") {
+    return obj.replace(/\{\{\s*([^}\s]+)\s*\}\}/g, (_0, name) => {
+      const e = process.env[name];
+      if (e === undefined) throw new Error(`Environment variable '${name}' is not set`);
+      return e;
+    });
+  }
+
+  // array? => recurse over its items
+  if (Array.isArray(obj)) {
+    return obj.map((item) => recursivelyInterpolateEnvVars(item));
+  }
+
+  // object? => recurse over its values (but don't touch the keys)
+  if (obj !== null && typeof obj === "object") {
+    return Object.keys(obj).reduce<any>((memo, key) => {
+      memo[key] = recursivelyInterpolateEnvVars(obj[key]);
+      return memo;
+    }, {});
+  }
+
+  // anything else (e.g. number)? => pass right through
+  return obj;
+}
 
 void (async () => {
-  const configFile = "zapatosconfig.json",
-    configJSON = fs.existsSync(configFile) ? fs.readFileSync(configFile, { encoding: "utf8" }) : "{}",
-    argsJSON = process.argv[2] ?? "{}";
+  const configFile = "zapatosconfig.json";
+  const configJSON = fs.existsSync(configFile) ? fs.readFileSync(configFile, { encoding: "utf8" }) : "{}";
+  const argsJSON = process.argv[2] ?? "{}";
 
   let fileConfig;
   try {
