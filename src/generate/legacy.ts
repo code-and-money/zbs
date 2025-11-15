@@ -6,7 +6,9 @@ import type { CompleteConfig } from "./config";
 const recurseNodes = (node: string): string[] => (fs.statSync(node).isFile() ? [node] : fs.readdirSync(node).reduce<string[]>((memo, n) => memo.concat(recurseNodes(path.join(node, n))), []));
 
 export function srcWarning(config: CompleteConfig) {
-  if (config.outExt === ".ts") return; // if .ts extension is explicitly set, our legacy detection code fails
+  if (config.outExt === ".ts") {
+    return; // if .ts extension is explicitly set, our legacy detection code fails
+  }
 
   const legacyFolderName = "dorjo";
   const legacyFolderPath = path.join(config.outDir, legacyFolderName);

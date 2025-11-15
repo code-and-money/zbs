@@ -328,7 +328,9 @@ interface TruncateSignatures {
  * 'RESTRICT'/'CASCADE'
  */
 export const truncate: TruncateSignatures = function (table: Table | Table[], ...opts: string[]): SqlFragment<undefined> {
-  if (!Array.isArray(table)) table = [table];
+  if (!Array.isArray(table)) {
+    table = [table];
+  }
   const tables = mapWithSeparator(table, sql`, `, (t) => t),
     query = sql<Sql, undefined>`TRUNCATE ${tables}${raw((opts.length ? " " : "") + opts.join(" "))}`;
 
@@ -408,7 +410,9 @@ export class NotExactlyOneError extends Error {
   query: SqlFragment;
   constructor(query: SqlFragment, ...params: any[]) {
     super(...params);
-    if (Error.captureStackTrace) Error.captureStackTrace(this, NotExactlyOneError); // V8 only
+    if (Error.captureStackTrace) {
+      Error.captureStackTrace(this, NotExactlyOneError); // V8 only
+    }
     this.name = "NotExactlyOneError";
     this.query = query; // custom property
   }
@@ -479,8 +483,12 @@ export const select: SelectSignatures = function (
       ? []
       : sql` ORDER BY ${mapWithSeparator(order as OrderSpecForTable<Table>[], sql`, `, (o) => {
           // `as` clause is required when TS not strict
-          if (!["ASC", "DESC"].includes(o.direction)) throw new Error(`Direction must be ASC/DESC, not '${o.direction}'`);
-          if (o.nulls && !["FIRST", "LAST"].includes(o.nulls)) throw new Error(`Nulls must be FIRST/LAST/undefined, not '${o.nulls}'`);
+          if (!["ASC", "DESC"].includes(o.direction)) {
+            throw new Error(`Direction must be ASC/DESC, not '${o.direction}'`);
+          }
+          if (o.nulls && !["FIRST", "LAST"].includes(o.nulls)) {
+            throw new Error(`Nulls must be FIRST/LAST/undefined, not '${o.nulls}'`);
+          }
           return sql`${o.by} ${raw(o.direction)}${o.nulls ? sql` NULLS ${raw(o.nulls)}` : []}`;
         })}`;
 

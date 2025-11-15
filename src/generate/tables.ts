@@ -308,7 +308,9 @@ export type AllTablesAndViews = ${schemaMappedArray(schemas, "AllTablesAndViews"
 `;
 
 const createColumnDoc = (config: CompleteConfig, schemaName: string, rel: Relation, columnDetails: Record<string, unknown>) => {
-  if (!config.schemaJSDoc) return "";
+  if (!config.schemaJSDoc) {
+    return "";
+  }
 
   const schemaPrefix = schemaName === config.unprefixedSchema ? "" : `${schemaName}.`;
   const { column, isGenerated, isNullable, hasDefault, defaultValue, udtName, domainName, description } = columnDetails;

@@ -51,7 +51,7 @@ function typeofQueryable(queryable: Queryable) {
     return "client";
   }
 
-  if (Object.prototype.hasOwnProperty.call(pg, "native") && Object.prototype.propertyIsEnumerable.call(pg, "native") && pg.native) {
+  if (Object.hasOwn(pg, "native") && Object.prototype.propertyIsEnumerable.call(pg, "native") && pg.native) {
     if (queryable instanceof pg.native.Pool) {
       return "pool";
     }
@@ -91,12 +91,14 @@ export async function transaction<T, M extends IsolationLevel>(
   isolationLevel: M,
   callback: (client: TxnClient<IsolationSatisfying<M>>) => Promise<T>,
 ): Promise<T> {
-  if (Object.prototype.hasOwnProperty.call(txnClientOrQueryable, "_dorjo")) {
+  if (Object.hasOwn(txnClientOrQueryable, "_dorjo")) {
     // if txnClientOrQueryable is a TxnClient, just pass it through
     return callback(txnClientOrQueryable as TxnClient<IsolationSatisfying<M>>);
   }
 
-  if (txnSeq >= Number.MAX_SAFE_INTEGER - 1) txnSeq = 0; // wrap around
+  if (txnSeq >= Number.MAX_SAFE_INTEGER - 1) {
+    txnSeq = 0; // wrap around
+  }
 
   const txnId = txnSeq++;
   const clientIsOurs = typeofQueryable(txnClientOrQueryable) === "pool";

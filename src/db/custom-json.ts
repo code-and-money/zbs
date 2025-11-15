@@ -61,13 +61,17 @@ function numericStringToExponential(str: string) {
 
   if (srcDigitsPreDp === "0") {
     // n === 0
-    if (!srcDigitsPostDp) return "0e+0";
+    if (!srcDigitsPostDp) {
+      return "0e+0";
+    }
 
     // n !== 0, -1 < n < 1
     exp -= srcLeadingZeroesPostDp?.length! + 1;
     result += srcDigitsPostDp.charAt(0);
 
-    if (srcDigitsPostDp.length > 1) result += `.${srcDigitsPostDp.slice(1)}`;
+    if (srcDigitsPostDp.length > 1) {
+      result += `.${srcDigitsPostDp.slice(1)}`;
+    }
   } else {
     // n <= -1, n >= 1
     exp += srcTrailingZeroesPreDp?.length! + srcDigitsPreDp?.length! - 1;
