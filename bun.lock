@@ -5,13 +5,13 @@
     "": {
       "name": "zaebis",
       "dependencies": {
-        "json-custom-numbers": "^3.1.1",
+        "json-custom-numbers": "latest",
       },
       "devDependencies": {
         "@types/bun": "latest",
-        "@types/pg": "^8.6.5",
-        "pg": "^8.7.3",
-        "typescript": "^5.9.3",
+        "@types/pg": "latest",
+        "pg": "latest",
+        "typescript": "latest",
       },
       "peerDependencies": {
         "@types/pg": ">=7.14.3",
