@@ -25,7 +25,7 @@
     "noUnusedParameters": false,
     "noPropertyAccessFromIndexSignature": false,
     "paths": {
-      "*": ["./src/typings/*"]
+      "@codeandmoney/dorjo/schema": ["./src/typings/schema.ts"]
     }
   },
   "include": ["src/**/*"]
