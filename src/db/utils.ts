@@ -51,7 +51,25 @@ export const completeKeysWithDefaultValue = <T extends object>(objs: T[], defaul
     unionKeys[k] = defaultValue;
   }
 
-  return objs.map((o) => ({ ...unionKeys, ...o }));
+  const objects = [];
+
+  for (const obj of objs) {
+    const record = { ...unionKeys };
+    
+    for (const key of Object.keys(obj) as Array<keyof typeof obj>) {
+      if (typeof obj[key] === "undefined") {
+        continue;
+      }
+
+      Object.assign(record, { [key]: obj[key] });
+    }
+
+    objects.push(record);
+  }
+
+  return objects;
+
+  // return objs.map((o) => ({ ...unionKeys, ...o }));
 };
 
 // /**

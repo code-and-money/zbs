@@ -1,6 +1,6 @@
 {
   "name": "@codeandmoney/dorjo",
-  "version": "0.0.0-rc.0",
+  "version": "0.0.0-rc.1",
   "description": "Zero-Abstraction Postgres for TypeScript",
   "keywords": [
     "postgres",

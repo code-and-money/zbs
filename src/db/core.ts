@@ -3,6 +3,7 @@ import type * as pg from "pg";
 import { getConfig, type SqlQuery } from "./config";
 import type { NoInfer } from "./utils";
 import type { Updatable, Whereable, Table, Column } from "@codeandmoney/dorjo/schema";
+import assert from "node:assert/strict";
 
 const timing = typeof performance === "object" ? () => performance.now() : () => Date.now();
 
@@ -358,8 +359,10 @@ export class SqlFragment<RunResult = pg.QueryResult["rows"], Constraint = never>
       result.text += expression.value;
     } else if (Array.isArray(expression)) {
       // an array's elements are compiled one by one -- note that an empty array can be used as a non-value
-      for (let i = 0, len = expression.length; i < len; i++) {
-        this.compileExpression(expression[i]!, result, parentTable, currentColumn);
+      for (let i = 0, len = expression.length, sql = undefined; i < len; i++) {
+        sql = expression[i];
+        assert(sql);
+        this.compileExpression(sql, result, parentTable, currentColumn);
       }
     } else if (expression instanceof Parameter) {
       // parameters become placeholders, and a corresponding entry in the values array
