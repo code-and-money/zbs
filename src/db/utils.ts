@@ -47,30 +47,33 @@ export const mapWithSeparator = <In, Sep, Out>(arr: readonly In[], separator: Se
 export const completeKeysWithDefaultValue = <T extends object>(objs: T[], defaultValue: any): T[] => {
   const unionKeys = Object.assign({}, ...objs);
 
-  for (const k in unionKeys) {
-    unionKeys[k] = defaultValue;
+  for (const key in unionKeys) {
+    unionKeys[key] = defaultValue;
   }
 
-  const objects = [];
-
-  for (const obj of objs) {
+  return objs.map((obj) => {
     const record = { ...unionKeys };
-    
-    for (const key of Object.keys(obj) as Array<keyof typeof obj>) {
+    for (const key in obj) {
       if (typeof obj[key] === "undefined") {
         continue;
       }
-
-      Object.assign(record, { [key]: obj[key] });
+      record[key] = obj[key];
     }
+    return record;
+  });
+};
 
-    objects.push(record);
+export function completeKeysWithDefaultValueObject<T extends object>(obj: T, defaultValue: any): T {
+  const record = {} as Record<string, any>;
+
+  for (const key in obj) {
+    if (typeof obj[key] !== "undefined") {
+      record[key] = defaultValue;
+    }
   }
 
-  return objects;
-
-  // return objs.map((o) => ({ ...unionKeys, ...o }));
-};
+  return obj;
+}
 
 // /**
 //  * Test that a value is a Plain Old JavaScript Object (such as one created by an object

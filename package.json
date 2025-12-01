@@ -1,6 +1,6 @@
 {
   "name": "@codeandmoney/dorjo",
-  "version": "0.0.0-rc.1",
+  "version": "0.0.0-rc.2",
   "description": "Zero-Abstraction Postgres for TypeScript",
   "keywords": [
     "postgres",
@@ -10,7 +10,8 @@
   ],
   "license": "MIT",
   "exports": {
-    "./db": "./dist/db/exports.js",
+    "./dbjs": "./dist/db/exports.js",
+    "./db": "./src/db/exports.ts",
     "./generate": "./dist/generate/exports.js"
   },
   "bin": {

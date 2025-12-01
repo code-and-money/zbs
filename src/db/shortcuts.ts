@@ -13,7 +13,7 @@ import type {
   Column,
 } from "@codeandmoney/dorjo/schema";
 import { type AllType, all, type Sql, SqlFragment, sql, cols, vals, raw, param, Default } from "./core";
-import { completeKeysWithDefaultValue, mapWithSeparator, type NoInfer } from "./utils";
+import { completeKeysWithDefaultValue, completeKeysWithDefaultValueObject, mapWithSeparator, type NoInfer } from "./utils";
 
 export type JsonOnlyColsForTable<T extends Table, C extends any[] /* `ColumnForTable<T>[]` gives errors here for reasons I haven't got to the bottom of */> = Pick<
   JsonSelectableForTable<T>,
@@ -102,7 +102,7 @@ export const insert: InsertSignatures = function (
     query.noop = true;
     query.noopResult = [];
   } else {
-    const completedValues = Array.isArray(values) ? completeKeysWithDefaultValue(values, Default) : values;
+    const completedValues = Array.isArray(values) ? completeKeysWithDefaultValue(values, Default) : completeKeysWithDefaultValueObject(values, Default);
     const colsSql = cols(Array.isArray(completedValues) ? completedValues[0] : completedValues);
     const valuesSql = Array.isArray(completedValues) ? mapWithSeparator(completedValues as Insertable[], sql`, `, (v) => sql`(${vals(v)})`) : sql`(${vals(completedValues)})`;
     const returningSql = SqlForColumnsOfTable(options?.returning, table);
