@@ -64,15 +64,22 @@ export const completeKeysWithDefaultValue = <T extends object>(objs: T[], defaul
 };
 
 export function completeKeysWithDefaultValueObject<T extends object>(obj: T, defaultValue: any): T {
-  const record = {} as Record<string, any>;
+  const record = {} as T;
+
+  // for (const key in obj) {
+  //   if (typeof obj[key] !== "undefined") {
+  //     record[key] = defaultValue;
+  //   }
+  // }
 
   for (const key in obj) {
-    if (typeof obj[key] !== "undefined") {
-      record[key] = defaultValue;
+    if (typeof obj[key] === "undefined") {
+      continue;
     }
+    record[key] = obj[key];
   }
 
-  return obj;
+  return record;
 }
 
 // /**

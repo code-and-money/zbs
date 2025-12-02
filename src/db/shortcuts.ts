@@ -103,7 +103,7 @@ export const insert: InsertSignatures = function (
     query.noopResult = [];
   } else {
     const completedValues = Array.isArray(values) ? completeKeysWithDefaultValue(values, Default) : completeKeysWithDefaultValueObject(values, Default);
-    const colsSql = cols(Array.isArray(completedValues) ? completedValues[0] : completedValues);
+    const colsSql = cols(Array.isArray(completedValues) ? completedValues[0]! : completedValues);
     const valuesSql = Array.isArray(completedValues) ? mapWithSeparator(completedValues as Insertable[], sql`, `, (v) => sql`(${vals(v)})`) : sql`(${vals(completedValues)})`;
     const returningSql = SqlForColumnsOfTable(options?.returning, table);
     const extrasSql = SqlForExtras(options?.extras);
