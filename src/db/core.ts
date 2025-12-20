@@ -4,6 +4,7 @@ import { getConfig, type SqlQuery } from "./config";
 import type { NoInfer } from "./utils";
 import type { Updatable, Whereable, Table, Column } from "@codeandmoney/dorjo/schema";
 import assert from "node:assert/strict";
+import { snakeCase } from "es-toolkit";
 
 const timing = typeof performance === "object" ? () => performance.now() : () => Date.now();
 
@@ -352,8 +353,14 @@ export class SqlFragment<RunResult = pg.QueryResult["rows"], Constraint = never>
       // another Sql fragment? recursively compile this one
       expression.compile(result, parentTable, currentColumn);
     } else if (typeof expression === "string") {
+      const final = expression
+        .split(".")
+        .map((str) => `"${snakeCase(str)}"`)
+        .join(".");
+
       // if it's a string, it should be a x.Table or x.Column type, so just needs quoting
-      result.text += expression.startsWith('"') && expression.endsWith('"') ? expression : `"${expression.replace(/[.]/g, '"."')}"`;
+      // result.text += expression.startsWith('"') && expression.endsWith('"') ? expression : `"${expression.replace(/[.]/g, '"."')}"`;
+      result.text += final;
     } else if (expression instanceof DangerousRawString) {
       // Little Bobby Tables passes straight through ...
       result.text += expression.value;
