@@ -1,3 +1,4 @@
+import { pascalCase } from "es-toolkit";
 import type * as pg from "pg";
 
 export type EnumData = { [k: string]: string[] };
@@ -33,9 +34,9 @@ export function enumTypesForEnumData(enums: EnumData) {
   const types = Object.keys(enums)
     .map(
       (name) => `
-export type ${name} = ${enums[name]!.map((v) => `'${v}'`).join(" | ")};
+export type ${pascalCase(name)} = ${enums[name]!.map((v) => `'${v}'`).join(" | ")};
 export namespace every {
-  export type ${name} = [${enums[name]!.map((v) => `'${v}'`).join(", ")}];
+  export type ${pascalCase(name)} = [${enums[name]!.map((v) => `'${v}'`).join(", ")}];
 }`,
     )
     .join("");

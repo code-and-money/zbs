@@ -1,5 +1,5 @@
 import { tsTypeForPgType } from "./pg-types";
-// import { camelCase, pascalCase } from "es-toolkit";
+import { camelCase, pascalCase } from "es-toolkit";
 
 import type * as pg from "pg";
 import type { EnumData } from "./enums";
@@ -100,7 +100,8 @@ export async function definitionForRelationInSchema(
   queryFn: (q: pg.QueryConfig) => Promise<pg.QueryResult<any>>,
 ): Promise<string> {
   const rows = await columnsForRelation(rel, schemaName, queryFn);
-  // const pascalRelName = pascalCase(rel["name"]);
+  const pascalRelName = pascalCase(rel["name"]);
+  // console.log('🚀 ~ pascalRelName:', pascalRelName)
 
   const selectables: string[] = [];
   const JsonSelectables: string[] = [];
@@ -112,21 +113,21 @@ export async function definitionForRelationInSchema(
     const { column, isGenerated, isNullable, hasDefault, udtName, domainName } = row;
 
     let selectableType = tsTypeForPgType(udtName, enums, "Selectable", config);
-    let JsonSelectableType = tsTypeForPgType(udtName, enums, "JsonSelectable", config);
+    let jsonSelectableType = tsTypeForPgType(udtName, enums, "JsonSelectable", config);
     let whereableType = tsTypeForPgType(udtName, enums, "Whereable", config);
     let insertableType = tsTypeForPgType(udtName, enums, "Insertable", config);
     let updatableType = tsTypeForPgType(udtName, enums, "Updatable", config);
 
     const columnDoc = createColumnDoc(config, schemaName, rel, row);
     const schemaPrefix = config.unprefixedSchema === schemaName ? "" : `${schemaName}.`;
-    const prefixedRelName = schemaPrefix + rel.name;
+    const prefixedRelName = schemaPrefix + pascalRelName;
     const columnOptions = config.columnOptions[prefixedRelName]?.[column] ?? config.columnOptions["*"]?.[column];
     const isInsertable = rel.insertable && !isGenerated && columnOptions?.insert !== "excluded";
     const isUpdatable = rel.insertable && !isGenerated && columnOptions?.update !== "excluded";
     const insertablyOptional = isNullable || hasDefault || columnOptions?.insert === "optional" ? "?" : "";
     const orNull = isNullable ? " | null" : "";
     const orDefault = isNullable || hasDefault ? " | db.DefaultType" : "";
-    const possiblyQuotedColumn = quoteIfIllegalIdentifier(column);
+    const possiblyQuotedColumn = quoteIfIllegalIdentifier(camelCase(column));
 
     // Now, 4 cases:
     //   1. null domain, known udt        <-- standard case
@@ -141,11 +142,11 @@ export async function definitionForRelationInSchema(
       const customType: string = domainName ?? udtName;
       const prefixedCustomType = transformCustomType(customType, config);
       Object.assign(customTypes, { [prefixedCustomType]: selectableType });
-      selectableType = JsonSelectableType = whereableType = insertableType = updatableType = `c.${prefixedCustomType}`;
+      selectableType = jsonSelectableType = whereableType = insertableType = updatableType = `c.${prefixedCustomType}`;
     }
 
     selectables.push(`${columnDoc}${possiblyQuotedColumn}: ${selectableType}${orNull};`);
-    JsonSelectables.push(`${columnDoc}${possiblyQuotedColumn}: ${JsonSelectableType}${orNull};`);
+    JsonSelectables.push(`${columnDoc}${possiblyQuotedColumn}: ${jsonSelectableType}${orNull};`);
 
     const basicWhereableTypes = `${whereableType} | db.Parameter<${whereableType}> | db.SqlFragment | db.ParentColumn`;
     whereables.push(`${columnDoc}${possiblyQuotedColumn}?: ${basicWhereableTypes} | db.SqlFragment<any, ${basicWhereableTypes}>;`);
@@ -179,15 +180,15 @@ export async function definitionForRelationInSchema(
   const tableComment = config.schemaJSDoc
     ? `
 /**
- * **${schemaPrefix}${rel.name}**
+ * **${schemaPrefix}${pascalRelName}**
  * - ${friendlyRelType} in database
  */`
     : ``;
 
   const tableDef = `
 ${tableComment}
-export namespace ${rel.name} {
-  export type Table = '${schemaPrefix}${rel.name}';
+export namespace ${pascalRelName} {
+  export type Table = '${schemaPrefix}${pascalRelName}';
   export interface Selectable { ${selectables.join("\n    ")} }
   export interface JsonSelectable { ${JsonSelectables.join("\n    ")} }
   export interface Whereable { ${whereables.join("\n    ")} }
@@ -225,7 +226,7 @@ function transformCustomType(customType: string, config: CompleteConfig): string
   return ctt(customType);
 }
 
-const tableMappedUnion = (arr: Relation[], suffix: string) => (arr.length === 0 ? "never" : arr.map((rel) => `${rel.name}.${suffix}`).join(" | "));
+const tableMappedUnion = (arr: Relation[], suffix: string) => (arr.length === 0 ? "never" : arr.map((rel) => `${pascalCase(rel.name)}.${suffix}`).join(" | "));
 const tableMappedArray = (arr: Relation[], suffix: string) => `[${arr.map((rel) => `${rel.name}.${suffix}`).join(", ")}]`;
 
 export function crossTableTypesForTables(tables: Relation[]) {
@@ -272,7 +273,7 @@ export function crossSchemaTypesForAllTables(allTables: Relation[], unprefixedSc
     const thingProperties = allTables
       .map((rel) => {
         const schemaPrefix = rel.schema === unprefixedSchema ? "" : `${rel.schema}.`;
-        return `"${schemaPrefix}${rel.name}": ${schemaPrefix}${rel.name}.${thingable}`;
+        return `"${schemaPrefix}${pascalCase(rel.name)}": ${schemaPrefix}${pascalCase(rel.name)}.${thingable}`;
       })
       .join(";");
 
@@ -287,7 +288,9 @@ export function crossSchemaTypesForAllTables(allTables: Relation[], unprefixedSc
 const schemaMappedUnion = (arr: string[], suffix: string) => (arr.length === 0 ? "any" : arr.map((s) => `${s}.${suffix}`).join(" | "));
 const schemaMappedArray = (arr: string[], suffix: string) => `[${arr.map((s) => `...${s}.${suffix}`).join(", ")}]`;
 
-export const crossSchemaTypesForSchemas = (schemas: string[]) => `
+export const crossSchemaTypesForSchemas = (schemas: string[]) => {
+
+  return `
 export type Schema = ${schemas.map((s) => `'${s}'`).join(" | ")};
 export type Table = ${schemaMappedUnion(schemas, "Table")};
 export type Selectable = ${schemaMappedUnion(schemas, "Selectable")};
@@ -305,6 +308,7 @@ export type AllViews = ${schemaMappedArray(schemas, "AllViews")};
 export type AllMaterializedViews = ${schemaMappedArray(schemas, "AllMaterializedViews")};
 export type AllTablesAndViews = ${schemaMappedArray(schemas, "AllTablesAndViews")};
 `;
+}
 
 function createColumnDoc(config: CompleteConfig, schemaName: string, rel: Relation, columnDetails: Record<string, unknown>) {
   if (!config.schemaJSDoc) {
