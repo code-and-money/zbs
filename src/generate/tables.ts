@@ -289,7 +289,6 @@ const schemaMappedUnion = (arr: string[], suffix: string) => (arr.length === 0 ?
 const schemaMappedArray = (arr: string[], suffix: string) => `[${arr.map((s) => `...${s}.${suffix}`).join(", ")}]`;
 
 export const crossSchemaTypesForSchemas = (schemas: string[]) => {
-
   return `
 export type Schema = ${schemas.map((s) => `'${s}'`).join(" | ")};
 export type Table = ${schemaMappedUnion(schemas, "Table")};
@@ -308,7 +307,7 @@ export type AllViews = ${schemaMappedArray(schemas, "AllViews")};
 export type AllMaterializedViews = ${schemaMappedArray(schemas, "AllMaterializedViews")};
 export type AllTablesAndViews = ${schemaMappedArray(schemas, "AllTablesAndViews")};
 `;
-}
+};
 
 function createColumnDoc(config: CompleteConfig, schemaName: string, rel: Relation, columnDetails: Record<string, unknown>) {
   if (!config.schemaJSDoc) {
