@@ -2,11 +2,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import type * as pg from "pg";
 
-export interface RequiredConfig {
-  // nothing is required any more
-}
-
-export interface OptionalConfig {
+export interface BaseConfig {
   db: pg.ClientConfig;
   outDir: string;
   outExt: string;
@@ -39,8 +35,8 @@ interface ColumnOptions {
   };
 }
 
-export type Config = RequiredConfig & Partial<OptionalConfig>;
-export type CompleteConfig = RequiredConfig & OptionalConfig;
+export type Config = Partial<BaseConfig>;
+export type CompleteConfig = BaseConfig;
 
 const defaultConfig: Config = {
   outDir: ".",
@@ -49,18 +45,18 @@ const defaultConfig: Config = {
   debugListener: false,
   progressListener: false,
   warningListener: true,
-  customTypesTransform: "PgMy_type",
+  customTypesTransform: "my_type",
   columnOptions: {},
   schemaJSDoc: true,
   unprefixedSchema: "public",
   customJsonParsingForLargeNumbers: false,
 };
 
-export const moduleRoot = () => {
-  // import.meta.dirname could be either ./generate (ts) or ./dist/generate (js)
-  const parentDir = path.join(import.meta.dirname, "..");
-  return fs.existsSync(path.join(parentDir, "package.json")) ? parentDir : path.join(parentDir, "..");
-};
+// export const moduleRoot = () => {
+//   // import.meta.dirname could be either ./generate (ts) or ./dist/generate (js)
+//   const parentDir = path.join(import.meta.dirname, "..");
+//   return fs.existsSync(path.join(parentDir, "package.json")) ? parentDir : path.join(parentDir, "..");
+// };
 
 export const finaliseConfig = (config: Config) => {
   const finalConfig = { ...defaultConfig, ...config };

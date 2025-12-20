@@ -5,10 +5,10 @@ import * as fs from "node:fs";
 import { generate } from "./exports";
 import type { Config } from "./config";
 
-function recursivelyInterpolateEnvVars(obj: any): any {
+function recursivelyInterpolateEnvVars(thing: unknown): any {
   // string? => do the interpolation
-  if (typeof obj === "string") {
-    return obj.replace(/\{\{\s*([^}\s]+)\s*\}\}/g, (_0, name) => {
+  if (typeof thing === "string") {
+    return thing.replace(/\{\{\s*([^}\s]+)\s*\}\}/g, (_0, name) => {
       const e = process.env[name];
       if (e === undefined) {
         throw new Error(`Environment variable '${name}' is not set`);
@@ -18,24 +18,24 @@ function recursivelyInterpolateEnvVars(obj: any): any {
   }
 
   // array? => recurse over its items
-  if (Array.isArray(obj)) {
-    return obj.map((item) => recursivelyInterpolateEnvVars(item));
+  if (Array.isArray(thing)) {
+    return thing.map((item) => recursivelyInterpolateEnvVars(item));
   }
 
   // object? => recurse over its values (but don't touch the keys)
-  if (obj !== null && typeof obj === "object") {
-    return Object.keys(obj).reduce<any>((memo, key) => {
-      Object.assign(memo, { [key]: recursivelyInterpolateEnvVars(obj[key]) });
+  if (thing !== null && typeof thing === "object") {
+    return (Object.keys(thing) as Array<keyof typeof thing>).reduce<any>((memo, key) => {
+      Object.assign(memo, { [key]: recursivelyInterpolateEnvVars(thing[key]) });
       return memo;
     }, {});
   }
 
   // anything else (e.g. number)? => pass right through
-  return obj;
+  return thing;
 }
 
-void (async () => {
-  const configFile = "dorjoconfig.json";
+async function main() {
+  const configFile = "dorjo.config.json";
   const configJson = fs.existsSync(configFile) ? fs.readFileSync(configFile, { encoding: "utf8" }) : "{}";
   const argsJson = process.argv[2] ?? "{}";
 
@@ -54,4 +54,6 @@ void (async () => {
   }
 
   await generate({ ...fileConfig, ...argsConfig } as Config);
-})();
+}
+
+void (await main());

@@ -19,6 +19,91 @@ const baseTsTypeForBasePgType = (pgType: string, enums: EnumData, context: TypeC
     warnedAboutInt8AndNumeric = true;
   }
 
+  //  switch (pgType) {
+  //   case "money":
+  //     return context === "JsonSelectable" || context === "Selectable" ? "string" : "(number | string)";
+
+  //   case "int8": {
+  //     warnAboutLargeNumbers();
+
+  //     if (context === "JsonSelectable") {
+  //       return config.customJsonParsingForLargeNumbers ? "(number | db.Int8String)" : "number";
+  //     }
+
+  //     return context === "Selectable" ? "db.Int8String" : "(number | db.Int8String | bigint)";
+  //   }
+
+  //   case "numeric": {
+  //     warnAboutLargeNumbers();
+
+  //     if (context === "JsonSelectable") {
+  //       return;
+  //     }
+
+  //     return context === "Selectable" ? "db.NumericString" : "(number | db.NumericString)";
+  //   }
+
+  //   case "bytea":
+  //     return context === "JsonSelectable" ? "db.ByteArrayString" : context === "Selectable" ? "Buffer" : "(db.ByteArrayString | Buffer)";
+
+  //   case "date":
+  //     return context === "JsonSelectable" ? "string" : context === "Selectable" ? "Date" : "(string | Date)";
+
+  //   case "timestamp":
+  //     return context === "JsonSelectable" ? "string" : context === "Selectable" ? "Date" : "(string | Date)";
+
+  //   case "timestamptz":
+  //     return context === "JsonSelectable" ? "string" : context === "Selectable" ? "Date" : "(string | Date)";
+
+  //   case "time":
+  //     return "string";
+
+  //   case "timetz":
+  //     return "string";
+
+  //   case "int4range":
+  //   case "int8range":
+  //   case "numrange":
+  //     return "db.NumberRangeString";
+
+  //   case "tsrange": // bounds format depends on pg DateStyle, hence only string-typed
+  //   case "tstzrange": // ditto
+  //   case "daterange": // ditto
+  //     return "string";
+
+  //   case "interval": // format depends on IntervalStyle, hence only string-typed
+  //   case "bpchar":
+  //   case "char":
+  //   case "varchar":
+  //   case "text":
+  //   case "citext":
+  //   case "uuid":
+  //   case "inet":
+  //   case "name":
+  //     return "string";
+
+  //   case "int2":
+  //   case "int4":
+  //   case "float4":
+  //   case "float8":
+  //   case "oid":
+  //     return "number";
+
+  //   case "bool":
+  //     return "boolean";
+
+  //   case "json":
+  //   case "jsonb":
+  //     return "db.JsonValue";
+
+  //   default: {
+  //     if (hasOwnProp.call(enums, pgType)) {
+  //       return pgType;
+  //     }
+  //     return null;
+  //   }
+  // }
+
   switch (pgType) {
     case "money":
       return context === "JsonSelectable" || context === "Selectable" ? "string" : "(number | string)";

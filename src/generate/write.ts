@@ -1,7 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { finaliseConfig, type Config } from "./config";
-import * as legacy from "./legacy";
 import { tsForConfig } from "./ts-output";
 import { header } from "./header";
 
@@ -55,5 +54,5 @@ declare module '@codeandmoney/dorjo/custom' { }
     fs.writeFileSync(customTypesIndexTargetPath, customTypesIndexContent, { flag: "w" });
   }
 
-  legacy.srcWarning(config);
+  // legacy.srcWarning(config);
 }

@@ -4,7 +4,7 @@ export type EnumData = { [k: string]: string[] };
 
 export async function enumDataForSchema(schemaName: string, queryFn: (q: pg.QueryConfig) => Promise<pg.QueryResult<any>>): Promise<EnumData> {
   const { rows } = await queryFn({
-    text: `
+    text: `--sql
         SELECT
           n.nspname AS schema
         , t.typname AS name
@@ -19,26 +19,26 @@ export async function enumDataForSchema(schemaName: string, queryFn: (q: pg.Quer
 
   const enums: EnumData = {};
 
-  for (const row of rows) {
+  for (const row of rows as { name: string; value: string }[]) {
     if (!enums[row.name]) {
       enums[row.name] = [];
     }
-    enums[row.name]?.push(row.value);
+    enums[row.name]!.push(row.value);
   }
 
   return enums;
 }
 
-export const enumTypesForEnumData = (enums: EnumData) => {
+export function enumTypesForEnumData(enums: EnumData) {
   const types = Object.keys(enums)
     .map(
       (name) => `
-export type ${name} = ${enums[name]?.map((v) => `'${v}'`).join(" | ")};
+export type ${name} = ${enums[name]!.map((v) => `'${v}'`).join(" | ")};
 export namespace every {
-  export type ${name} = [${enums[name]?.map((v) => `'${v}'`).join(", ")}];
+  export type ${name} = [${enums[name]!.map((v) => `'${v}'`).join(", ")}];
 }`,
     )
     .join("");
 
   return types;
-};
+}
