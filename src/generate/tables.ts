@@ -1,5 +1,7 @@
-import type * as pg from "pg";
 import { tsTypeForPgType } from "./pg-types";
+// import { camelCase, pascalCase } from "es-toolkit";
+
+import type * as pg from "pg";
 import type { EnumData } from "./enums";
 import type { CustomTypes } from "./ts-output";
 import type { CompleteConfig } from "./config";
@@ -11,9 +13,9 @@ export interface Relation {
   insertable: boolean;
 }
 
-export const relationsInSchema = async (schemaName: string, queryFn: (q: pg.QueryConfig) => Promise<pg.QueryResult<any>>): Promise<Relation[]> => {
+export async function relationsInSchema(schemaName: string, queryFn: (q: pg.QueryConfig) => Promise<pg.QueryResult<any>>): Promise<Relation[]> {
   const { rows } = await queryFn({
-    text: `
+    text: `--sql
       SELECT $1 as schema
       , table_name AS name
       , lower(table_name) AS lname  -- using a case-insensitive sort, but you can't order by a function in a UNION query
@@ -38,13 +40,13 @@ export const relationsInSchema = async (schemaName: string, queryFn: (q: pg.Quer
   });
 
   return rows;
-};
+}
 
-const columnsForRelation = async (rel: Relation, schemaName: string, queryFn: (q: pg.QueryConfig) => Promise<pg.QueryResult<any>>) => {
+async function columnsForRelation(rel: Relation, schemaName: string, queryFn: (q: pg.QueryConfig) => Promise<pg.QueryResult<any>>) {
   const { rows } = await queryFn({
     text:
       rel.type === "mview"
-        ? `
+        ? `--sql
         SELECT
           a.attname AS "column"
         , a.attnotnull = 'f' AS "isNullable"
@@ -62,7 +64,7 @@ const columnsForRelation = async (rel: Relation, schemaName: string, queryFn: (q
         LEFT JOIN pg_catalog.pg_description d ON d.objoid = c.oid AND d.objsubid = a.attnum
         WHERE c.relkind = 'm' AND a.attnum >= 1 AND c.relname = $1 AND n.nspname = $2
         ORDER BY "column"`
-        : `
+        : `--sql
         SELECT
           column_name AS "column"
         , is_nullable = 'YES' AS "isNullable"
@@ -82,7 +84,7 @@ const columnsForRelation = async (rel: Relation, schemaName: string, queryFn: (q
   });
 
   return rows;
-};
+}
 
 function quoteIfIllegalIdentifier(identifier: string) {
   // note: we'll redundantly quote a bunch of non-ASCII characters like this
@@ -98,13 +100,15 @@ export async function definitionForRelationInSchema(
   queryFn: (q: pg.QueryConfig) => Promise<pg.QueryResult<any>>,
 ): Promise<string> {
   const rows = await columnsForRelation(rel, schemaName, queryFn);
+  // const pascalRelName = pascalCase(rel["name"]);
+
   const selectables: string[] = [];
   const JsonSelectables: string[] = [];
   const whereables: string[] = [];
   const insertables: string[] = [];
   const updatables: string[] = [];
 
-  rows.forEach((row) => {
+  for (const row of rows) {
     const { column, isGenerated, isNullable, hasDefault, udtName, domainName } = row;
 
     let selectableType = tsTypeForPgType(udtName, enums, "Selectable", config);
@@ -155,10 +159,10 @@ export async function definitionForRelationInSchema(
     if (isUpdatable) {
       updatables.push(`${columnDoc}${possiblyQuotedColumn}?: ${updatableTypes} | db.SqlFragment<any, ${updatableTypes}>;`);
     }
-  });
+  }
 
   const result = await queryFn({
-    text: `
+    text: `--sql
         SELECT DISTINCT i.indexname
         FROM pg_catalog.pg_indexes i
         JOIN pg_catalog.pg_class c ON c.relname = i.indexname
@@ -170,12 +174,7 @@ export async function definitionForRelationInSchema(
   const uniqueIndexes = result.rows;
 
   const schemaPrefix = schemaName === config.unprefixedSchema ? "" : `${schemaName}.`;
-  const friendlyRelTypes: Record<Relation["type"], string> = {
-    table: "Table",
-    fdw: "Foreign table",
-    view: "View",
-    mview: "Materialized view",
-  };
+  const friendlyRelTypes: Record<Relation["type"], string> = { table: "Table", fdw: "Foreign table", view: "View", mview: "Materialized view" };
   const friendlyRelType = friendlyRelTypes[rel.type];
   const tableComment = config.schemaJSDoc
     ? `
@@ -185,30 +184,23 @@ export async function definitionForRelationInSchema(
  */`
     : ``;
 
-  const tableDef = `${tableComment}
+  const tableDef = `
+${tableComment}
 export namespace ${rel.name} {
   export type Table = '${schemaPrefix}${rel.name}';
-  export interface Selectable {
-    ${selectables.join("\n    ")}
-  }
-  export interface JsonSelectable {
-    ${JsonSelectables.join("\n    ")}
-  }
-  export interface Whereable {
-    ${whereables.join("\n    ")}
-  }
-  export interface Insertable {
-    ${insertables.length > 0 ? insertables.join("\n    ") : `[key: string]: never;`}
-  }
-  export interface Updatable {
-    ${updatables.length > 0 ? updatables.join("\n    ") : `[key: string]: never;`}
-  }
+  export interface Selectable { ${selectables.join("\n    ")} }
+  export interface JsonSelectable { ${JsonSelectables.join("\n    ")} }
+  export interface Whereable { ${whereables.join("\n    ")} }
+  export interface Insertable { ${insertables.length > 0 ? insertables.join("\n    ") : `[key: string]: never;`} }
+  export interface Updatable { ${updatables.length > 0 ? updatables.join("\n    ") : `[key: string]: never;`} }
   export type UniqueIndex = ${uniqueIndexes.length > 0 ? uniqueIndexes.map((ui) => `'${ui.indexname}'`).join(" | ") : "never"};
   export type Column = keyof Selectable;
   export type OnlyCols<T extends readonly Column[]> = Pick<Selectable, T[number]>;
   export type SqlExpression = Table | db.ColumnNames<Updatable | (keyof Updatable)[]> | db.ColumnValues<Updatable> | Whereable | Column | db.ParentColumn | db.GenericSqlExpression;
   export type Sql = SqlExpression | SqlExpression[];
-}`;
+}
+  
+`;
 
   return tableDef;
 }
@@ -236,9 +228,9 @@ function transformCustomType(customType: string, config: CompleteConfig): string
 const tableMappedUnion = (arr: Relation[], suffix: string) => (arr.length === 0 ? "never" : arr.map((rel) => `${rel.name}.${suffix}`).join(" | "));
 const tableMappedArray = (arr: Relation[], suffix: string) => `[${arr.map((rel) => `${rel.name}.${suffix}`).join(", ")}]`;
 
-export const crossTableTypesForTables = (tables: Relation[]) => `${
-  tables.length === 0 ? "\n// `never` rather than `any` types would be more accurate in this no-tables case, but they stop `shortcuts.ts` compiling\n" : ""
-}
+export function crossTableTypesForTables(tables: Relation[]) {
+  return `
+${tables.length === 0 ? "\n// `never` rather than `any` types would be more accurate in this no-tables case, but they stop `shortcuts.ts` compiling\n" : ""}
 export type Table = ${tableMappedUnion(tables, "Table")};
 export type Selectable = ${tableMappedUnion(tables, "Selectable")};
 export type JsonSelectable = ${tableMappedUnion(tables, "JsonSelectable")};
@@ -249,41 +241,48 @@ export type UniqueIndex = ${tableMappedUnion(tables, "UniqueIndex")};
 export type Column = ${tableMappedUnion(tables, "Column")};
 
 export type AllBaseTables = ${tableMappedArray(
-  tables.filter((rel) => rel.type === "table"),
-  "Table",
-)};
+    tables.filter((rel) => rel.type === "table"),
+    "Table",
+  )};
 export type AllForeignTables = ${tableMappedArray(
-  tables.filter((rel) => rel.type === "fdw"),
-  "Table",
-)};
+    tables.filter((rel) => rel.type === "fdw"),
+    "Table",
+  )};
 export type AllViews = ${tableMappedArray(
-  tables.filter((rel) => rel.type === "view"),
-  "Table",
-)};
+    tables.filter((rel) => rel.type === "view"),
+    "Table",
+  )};
 export type AllMaterializedViews = ${tableMappedArray(
-  tables.filter((rel) => rel.type === "mview"),
-  "Table",
-)};
+    tables.filter((rel) => rel.type === "mview"),
+    "Table",
+  )};
 export type AllTablesAndViews = ${tableMappedArray(tables, "Table")};`;
+}
 
-export const crossSchemaTypesForAllTables = (allTables: Relation[], unprefixedSchema: string | null) =>
-  ["Selectable", "JsonSelectable", "Whereable", "Insertable", "Updatable", "UniqueIndex", "Column", "Sql"]
-    .map(
-      (thingable) => `
-export type ${thingable}ForTable<T extends Table> = ${
-        allTables.length === 0
-          ? "any"
-          : `{${allTables
-              .map(
-                (rel) => `
-  "${rel.schema === unprefixedSchema ? "" : `${rel.schema}.`}${rel.name}": ${rel.schema === unprefixedSchema ? "" : `${rel.schema}.`}${rel.name}.${thingable};`,
-              )
-              .join("")}
-}[T]`
-      };
-`,
-    )
-    .join("");
+const things = ["Selectable", "JsonSelectable", "Whereable", "Insertable", "Updatable", "UniqueIndex", "Column", "Sql"];
+export function crossSchemaTypesForAllTables(allTables: Relation[], unprefixedSchema: string | null) {
+  const fragments: string[] = [];
+
+  for (const thingable of things) {
+    if (allTables.length === 0) {
+      fragments.push(`export type ${thingable}ForTable<T extends Table> = "any";`);
+      continue;
+    }
+
+    const thingProperties = allTables
+      .map((rel) => {
+        const schemaPrefix = rel.schema === unprefixedSchema ? "" : `${rel.schema}.`;
+        return `"${schemaPrefix}${rel.name}": ${schemaPrefix}${rel.name}.${thingable}`;
+      })
+      .join(";");
+
+    const str = `export type ${thingable}ForTable<T extends Table> = { ${thingProperties} }[T]; `;
+
+    fragments.push(str);
+  }
+
+  return fragments.join("");
+}
 
 const schemaMappedUnion = (arr: string[], suffix: string) => (arr.length === 0 ? "any" : arr.map((s) => `${s}.${suffix}`).join(" | "));
 const schemaMappedArray = (arr: string[], suffix: string) => `[${arr.map((s) => `...${s}.${suffix}`).join(", ")}]`;
@@ -307,26 +306,35 @@ export type AllMaterializedViews = ${schemaMappedArray(schemas, "AllMaterialized
 export type AllTablesAndViews = ${schemaMappedArray(schemas, "AllTablesAndViews")};
 `;
 
-const createColumnDoc = (config: CompleteConfig, schemaName: string, rel: Relation, columnDetails: Record<string, unknown>) => {
+function createColumnDoc(config: CompleteConfig, schemaName: string, rel: Relation, columnDetails: Record<string, unknown>) {
   if (!config.schemaJSDoc) {
     return "";
   }
 
-  const schemaPrefix = schemaName === config.unprefixedSchema ? "" : `${schemaName}.`;
   const { column, isGenerated, isNullable, hasDefault, defaultValue, udtName, domainName, description } = columnDetails;
+  const schemaPrefix = schemaName === config.unprefixedSchema ? "" : `${schemaName}.`;
 
-  const doc = `/**
-    * **${schemaPrefix}${rel.name}.${column}**${description ? `\n    *\n    * ${description}` : ""}
-    * - ${domainName ? `\`${domainName}\` (base type: \`${udtName ?? "(none)"}\`)` : `\`${udtName ?? "(none)"}\``} in database
-    * - ${
-      rel.type === "mview"
-        ? "Materialized view column"
-        : isGenerated
-          ? "Generated column"
-          : `${isNullable ? "Nullable" : "`NOT NULL`"}, ${hasDefault && defaultValue === null ? `identity column` : hasDefault ? `default: \`${defaultValue}\`` : `no default`}`
-    }
-    */
-    `;
+  const docsFragments: string[] = [];
 
-  return doc;
-};
+  docsFragments.push("/**");
+
+  docsFragments.push(`* **${schemaPrefix}${rel.name}.${column}**`);
+
+  if (description) {
+    docsFragments.push(`\n    *\n    * ${description}`);
+  }
+
+  docsFragments.push(`* - ${domainName ? `\`${domainName}\` (base type: \`${udtName ?? "(none)"}\`)` : `\`${udtName ?? "(none)"}\``} in database`);
+
+  if (rel.type === "mview") {
+    docsFragments.push('* - "Materialized view column"');
+  } else if (isGenerated) {
+    docsFragments.push('* - "Generated column"');
+  } else {
+    docsFragments.push(`* - ${isNullable ? "Nullable" : "`NOT NULL`"}, ${hasDefault && defaultValue === null ? `identity column` : hasDefault ? `default: \`${defaultValue}\`` : `no default`}`);
+  }
+
+  docsFragments.push("*/");
+
+  return docsFragments.join("\n");
+}
