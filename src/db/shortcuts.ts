@@ -19,7 +19,7 @@ import { toCamelCaseKeys } from "es-toolkit";
 
 export type JsonOnlyColsForTable<T extends Table, C extends any[] /* `ColumnForTable<T>[]` gives errors here for reasons I haven't got to the bottom of */> = Pick<
   JsonSelectableForTable<T>,
-  C[number]
+ Exclude<C[number], "*">
 >;
 
 export interface SqlFragmentMap {
