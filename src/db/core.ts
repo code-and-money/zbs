@@ -353,14 +353,17 @@ export class SqlFragment<RunResult = pg.QueryResult["rows"], Constraint = never>
       // another Sql fragment? recursively compile this one
       expression.compile(result, parentTable, currentColumn);
     } else if (typeof expression === "string") {
-      const final = expression
-        .split(".")
-        .map((str) => `"${snakeCase(str)}"`)
-        .join(".");
+      if (hasUppercase(expression)) {
+        const final = expression
+          .split(".")
+          .map((str) => `"${snakeCase(str)}"`)
+          .join(".");
 
-      // if it's a string, it should be a x.Table or x.Column type, so just needs quoting
-      // result.text += expression.startsWith('"') && expression.endsWith('"') ? expression : `"${expression.replace(/[.]/g, '"."')}"`;
-      result.text += final;
+        result.text += final;
+      } else {
+        // if it's a string, it should be a x.Table or x.Column type, so just needs quoting
+        result.text += expression.startsWith('"') && expression.endsWith('"') ? expression : `"${expression.replace(/[.]/g, '"."')}"`;
+      }
     } else if (expression instanceof DangerousRawString) {
       // Little Bobby Tables passes straight through ...
       result.text += expression.value;
@@ -503,4 +506,12 @@ export class SqlFragment<RunResult = pg.QueryResult["rows"], Constraint = never>
       throw new Error(`Alien object while interpolating Sql: ${expression}`);
     }
   };
+}
+
+function hasUppercase(str: string) {
+  for (let i = 0; i < str.length; i++) {
+    const c = str.charCodeAt(i);
+    if (c >= 65 && c <= 90) return true; // 'A'–'Z'
+  }
+  return false;
 }
